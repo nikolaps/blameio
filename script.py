@@ -1,9 +1,13 @@
 #!/usr/bin/env python3.9
 import mysql.connector
+import os
 
-cnx = mysql.connector.connect(user='user', password='password',
-                              host='db-ny7-02',
-                              database='performance_schema')
+cnx = mysql.connector.connect(
+    user=os.getenv('DB_USER'),
+    password=os.getenv('DB_PASS'),
+    host=os.getenv('DB_HOST'),
+    database=os.getenv('DB_NAME')
+)
 
 cursor = cnx.cursor()
 

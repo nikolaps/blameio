@@ -18,7 +18,8 @@ databases = {
     }
 }
 
-query_io = ("SELECT concat(OBJECT_SCHEMA,'.',OBJECT_NAME) as table_name,"
+query_io = (
+         "SELECT concat(OBJECT_SCHEMA,'.',OBJECT_NAME) as table_name,"
          "SUM_TIMER_FETCH / 1000000000000 as FETCH_LATENCY,"
          "SUM_TIMER_INSERT / 1000000000000 as INSERT_LATENCY,"
          "SUM_TIMER_UPDATE / 1000000000000 as UPDATE_LATENCY,"
@@ -27,11 +28,21 @@ query_io = ("SELECT concat(OBJECT_SCHEMA,'.',OBJECT_NAME) as table_name,"
          "SUM_TIMER_WAIT / 1000000000000 as WAIT_LATENCY "
          "FROM performance_schema.table_io_waits_summary_by_table "
          "WHERE OBJECT_SCHEMA NOT IN ('performance_schema', 'mysql', 'information_schema') "
-         "AND SUM_TIMER_WAIT > 0")
+         "AND SUM_TIMER_WAIT > 0"
+         )
 
-query_digest = ("SELECT DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_NO_INDEX_USED,"
-         "SUM_SELECT_SCAN, SUM_TIMER_WAIT / 1000000000000 as WAIT_LATENCY "
-         "FROM performance_schema.events_statements_summary_by_digest")
+query_digest = (
+        "SELECT "
+        "digest AS query_digest, "
+        "digest_text AS query_text, "
+        "count_star AS exec_count, "
+        "sum_timer_wait/1000000000000 AS exec_time_s, "
+        "sum_no_index_used AS no_index_used_count, "
+        "sum_select_scan AS full_scan_count "
+        "FROM performance_schema.events_statements_summary_by_digest "
+        "WHERE digest IS NOT NULL "
+        "ORDER BY exec_time_s DESC;"
+    )
 
 query_replica = "SHOW SLAVE STATUS"
 

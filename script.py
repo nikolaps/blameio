@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.9
 import mysql.connector
 
-cnx = mysql.connector.connect(user='nikolai', password='jWK8VKfs77PkAe4Pz4ehFEybwubfPJ5M',
+cnx = mysql.connector.connect(user='user', password='password',
                               host='db-ny7-02',
                               database='performance_schema')
 

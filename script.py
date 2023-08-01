@@ -60,9 +60,9 @@ for db_name, db_params in databases.items():
         print(f"table_io,db={db_name},table_name={table_name} FETCH_LATENCY={FETCH_LATENCY},INSERT_LATENCY={INSERT_LATENCY},UPDATE_LATENCY={UPDATE_LATENCY},DELETE_LATENCY={DELETE_LATENCY},COUNT_STAR={COUNT_STAR},WAIT_LATENCY={WAIT_LATENCY}")
 
     # Execute the second query
-    cursor.execute(query_digest)
-    for (DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_NO_INDEX_USED, SUM_SELECT_SCAN, WAIT_LATENCY) in cursor:
-        print(f"digest_stats,db={db_name},digest={DIGEST} DIGEST_TEXT=\"{DIGEST_TEXT}\",COUNT_STAR={COUNT_STAR},SUM_NO_INDEX_USED={SUM_NO_INDEX_USED},SUM_SELECT_SCAN={SUM_SELECT_SCAN},WAIT_LATENCY={WAIT_LATENCY}")
+    #cursor.execute(query_digest)
+    #for (DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_NO_INDEX_USED, SUM_SELECT_SCAN, WAIT_LATENCY) in cursor:
+        #print(f"digest_stats,db={db_name},digest={DIGEST} DIGEST_TEXT=\"{DIGEST_TEXT}\",COUNT_STAR={COUNT_STAR},SUM_NO_INDEX_USED={SUM_NO_INDEX_USED},SUM_SELECT_SCAN={SUM_SELECT_SCAN},WAIT_LATENCY={WAIT_LATENCY}")
 
     # Check and get replication stats if it's a replica
     if db_name == 'replica':

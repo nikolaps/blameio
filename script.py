@@ -34,14 +34,13 @@ query_io = (
 query_digest = (
         "SELECT "
         "digest AS query_digest, "
-        "digest_text AS query_text, "
+        #"digest_text AS query_text, "
         "count_star AS exec_count, "
         "sum_timer_wait/1000000000000 AS exec_time_s, "
         "sum_no_index_used AS no_index_used_count, "
         "sum_select_scan AS full_scan_count "
         "FROM performance_schema.events_statements_summary_by_digest "
-        "WHERE digest IS NOT NULL "
-        "ORDER BY exec_time_s DESC;"
+        "WHERE digest IS NOT NULL;"
     )
 
 query_replica = "SHOW SLAVE STATUS"
@@ -60,9 +59,9 @@ for db_name, db_params in databases.items():
         print(f"table_io,db={db_name},table_name={table_name} FETCH_LATENCY={FETCH_LATENCY},INSERT_LATENCY={INSERT_LATENCY},UPDATE_LATENCY={UPDATE_LATENCY},DELETE_LATENCY={DELETE_LATENCY},COUNT_STAR={COUNT_STAR},WAIT_LATENCY={WAIT_LATENCY}")
 
     # Execute the second query
-    #cursor.execute(query_digest)
-    #for (DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_NO_INDEX_USED, SUM_SELECT_SCAN, WAIT_LATENCY) in cursor:
-        #print(f"digest_stats,db={db_name},digest={DIGEST} DIGEST_TEXT=\"{DIGEST_TEXT}\",COUNT_STAR={COUNT_STAR},SUM_NO_INDEX_USED={SUM_NO_INDEX_USED},SUM_SELECT_SCAN={SUM_SELECT_SCAN},WAIT_LATENCY={WAIT_LATENCY}")
+    cursor.execute(query_digest)
+    for (DIGEST, COUNT_STAR, SUM_NO_INDEX_USED, SUM_SELECT_SCAN, WAIT_LATENCY) in cursor:
+        print(f"digest_stats,db={db_name},digest={DIGEST} COUNT_STAR={COUNT_STAR},SUM_NO_INDEX_USED={SUM_NO_INDEX_USED},SUM_SELECT_SCAN={SUM_SELECT_SCAN},WAIT_LATENCY={WAIT_LATENCY}")
 
     # Check and get replication stats if it's a replica
     if db_name == 'replica':

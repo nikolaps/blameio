@@ -1,53 +1,43 @@
-version: '3.3'
+version: '3'
+
 services:
-  telegraf:
-    build: 
-      context: . 
-      dockerfile: Dockerfile      
-    container_name: telegraf
-    restart: always
-    volumes:
-    - ./script.py:/scripts/script.py:ro
-    - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
-    depends_on:
-      - influxdb
-    links:
-      - influxdb
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      POSTGRES_USER: blameio
+      POSTGRES_PASSWORD: RYc7ET6MwdjkmkbkfPJutHfh
+      POSTGRES_DB: statsdb
     ports:
-    - '8125:8125'
+      - "5432:5432"
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+
+  collectd:
+    build:
+      context: ./collectd # Replace with the directory containing the Dockerfile and Python script
+      dockerfile: Dockerfile
+    depends_on:
+      - timescaledb
     env_file:
     - env.list
-  influxdb:
-    image: influxdb:1.8-alpine
-    container_name: influxdb
-    restart: always
-    environment:
-      - INFLUXDB_DB=latency
-      - INFLUXDB_ADMIN_USER=admin
-      - INFLUXDB_ADMIN_PASSWORD=admin
-    ports:
-      - '8086:8086'
-    volumes:
-      - influxdb_data:/var/lib/influxdb
+
   grafana:
     image: grafana/grafana
-    container_name: grafana-server
-    restart: always
-    depends_on:
-      - influxdb
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_INSTALL_PLUGINS=
-    links:
-      - influxdb
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: timescaledb:5432
+      GF_DATABASE_NAME: statsdb
+      GF_DATABASE_USER: blameio
+      GF_DATABASE_PASSWORD: RYc7ET6MwdjkmkbkfPJutHfh
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
     ports:
-      - '3005:3000'
+      - "3005:3000"
     volumes:
-      - grafana_data:/var/lib/grafana
-      #- ./grafana/dashboards:/etc/grafana/provisioning/dashboards
-      #- ./grafana/datasources:/etc/grafana/provisioning/datasources
-      
+      - ./grafana-provisioning:/etc/grafana/provisioning
+    depends_on:
+      - timescaledb
+
 volumes:
-  grafana_data: {}
-  influxdb_data: {}
+  timescaledb-data:
+    driver: local

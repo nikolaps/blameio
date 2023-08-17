@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.9
 import os
 import mysql.connector
+import psycopg2
 
 # Define the databases
 databases = {
@@ -33,20 +34,31 @@ query_io = (
 
 query_digest = (
         "SELECT "
-        "digest AS query_digest, "
-        #"digest_text AS query_text, "
+        "digest, "
+        "digest_text AS query_text, "
         "count_star AS exec_count, "
-        "sum_timer_wait/1000000000000 AS exec_time_s, "
+        "sum_timer_wait/1000000000000 AS latency, "
         "sum_no_index_used AS no_index_used_count, "
         "sum_select_scan AS full_scan_count "
         "FROM performance_schema.events_statements_summary_by_digest "
-        "WHERE digest IS NOT NULL;"
+        "WHERE digest IS NOT NULL "
+        "AND SUM_TIMER_WAIT > 0"
     )
 
 query_replica = "SHOW SLAVE STATUS"
 
+# Connect to TimescaleDB
+conn = psycopg2.connect(
+    dbname='statsdb',
+    user='blameio',
+    password='RYc7ET6MwdjkmkbkfPJutHfh',
+    host='timescaledb',
+    port='5432'
+)
+cur = conn.cursor()
+
 for db_name, db_params in databases.items():
-    # Connect to the database
+    # Connect to the MySQL database
     cnx = mysql.connector.connect(user=db_params['DB_USER'], password=db_params['DB_PASS'],
                                   host=db_params['DB_HOST'], database=db_params['DB_NAME'])
 
@@ -56,12 +68,20 @@ for db_name, db_params in databases.items():
     # Execute the first query
     cursor.execute(query_io)
     for (table_name, FETCH_LATENCY, INSERT_LATENCY, UPDATE_LATENCY, DELETE_LATENCY, COUNT_STAR, WAIT_LATENCY) in cursor:
-        print(f"table_io,db={db_name},table_name={table_name} FETCH_LATENCY={FETCH_LATENCY},INSERT_LATENCY={INSERT_LATENCY},UPDATE_LATENCY={UPDATE_LATENCY},DELETE_LATENCY={DELETE_LATENCY},COUNT_STAR={COUNT_STAR},WAIT_LATENCY={WAIT_LATENCY}")
+        cur.execute(
+            "INSERT INTO table_io (db, table_name, FETCH_LATENCY, INSERT_LATENCY, UPDATE_LATENCY, DELETE_LATENCY, COUNT_STAR, WAIT_LATENCY) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (db_name, table_name, FETCH_LATENCY, INSERT_LATENCY, UPDATE_LATENCY, DELETE_LATENCY, COUNT_STAR, WAIT_LATENCY)
+        )
+        conn.commit()
 
     # Execute the second query
     cursor.execute(query_digest)
-    for (DIGEST, COUNT_STAR, SUM_NO_INDEX_USED, SUM_SELECT_SCAN, WAIT_LATENCY) in cursor:
-        print(f"digest_stats,db={db_name},digest={DIGEST} COUNT_STAR={COUNT_STAR},SUM_NO_INDEX_USED={SUM_NO_INDEX_USED},SUM_SELECT_SCAN={SUM_SELECT_SCAN},WAIT_LATENCY={WAIT_LATENCY}")
+    for (digest,query_text, exec_count, latency, no_index_used_count, full_scan_count) in cursor:
+        cur.execute(
+            "INSERT INTO digest_stats (db, digest, query_text, COUNT_STAR, latency, SUM_NO_INDEX_USED, SUM_SELECT_SCAN) VALUES (%s, %s, %s, %s, %s, %s)",
+            (db_name, digest, query_text, exec_count, latency, no_index_used_count, full_scan_count)
+        )
+        conn.commit()
 
     # Check and get replication stats if it's a replica
     if db_name == 'replica':
@@ -70,8 +90,15 @@ for db_name, db_params in databases.items():
         for row in cursor:
             columns = cursor.column_names
             replication_data = dict(zip(columns, row))
-            print(f"replication,db={db_name},host={db_params['DB_HOST']} Master_Log_File=\"{replication_data['Master_Log_File']}\",Read_Master_Log_Pos={replication_data['Read_Master_Log_Pos']},Relay_Master_Log_File=\"{replication_data['Relay_Master_Log_File']}\",Exec_Master_Log_Pos={replication_data['Exec_Master_Log_Pos']},Seconds_Behind_Master={replication_data['Seconds_Behind_Master']}")
+            cur.execute(
+                "INSERT INTO replication (db, host, Master_Log_File, Read_Master_Log_Pos, Relay_Master_Log_File, Exec_Master_Log_Pos, Seconds_Behind_Master) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (db_name, db_params['DB_HOST'], replication_data['Master_Log_File'], replication_data['Read_Master_Log_Pos'], replication_data['Relay_Master_Log_File'], replication_data['Exec_Master_Log_Pos'], replication_data['Seconds_Behind_Master'])
+            )
+            conn.commit()
 
     # Close cursor and connection
     cursor.close()
     cnx.close()
+
+cur.close()
+conn.close()

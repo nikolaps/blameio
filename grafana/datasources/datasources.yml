@@ -1,12 +1,15 @@
+# grafana-provisioning/datasources/datasources.yaml
 apiVersion: 1
-
 datasources:
-  - name: InfluxDB
-    type: influxdb
-    url: http://influxdb:8086
-    access: proxy
-    database: latency
-    user: admin
-    password: admin
-    isDefault: true
-
+  - name: TimescaleDB
+    type: postgres
+    url: timescaledb:5432
+    database: statsdb
+    user: blameio
+    secureJsonData:
+      password: RYc7ET6MwdjkmkbkfPJutHfh
+    jsonData:
+      sslmode: "disable"
+      timescaledb: true
+    version: 1
+    editable: false

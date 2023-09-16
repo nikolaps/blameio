@@ -90,7 +90,7 @@ for db_name, db_params in databases.items():
             """
             INSERT INTO digest_stats (
                 id, 
-                user, 
+                "user", 
                 host, 
                 db, 
                 command, 

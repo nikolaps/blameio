@@ -34,7 +34,7 @@ services:
     ports:
       - "3005:3000"
     volumes:
-      - ./grafana-provisioning:/etc/grafana/provisioning
+      - ./grafana:/etc/grafana/provisioning
     depends_on:
       - timescaledb
 

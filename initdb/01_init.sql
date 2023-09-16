@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
 CREATE TABLE table_io (
     time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     db TEXT,
@@ -12,13 +14,18 @@ CREATE TABLE table_io (
 
 CREATE TABLE digest_stats (
     time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id BIGINT PRIMARY KEY,
+    user TEXT,
+    host TEXT,
     db TEXT,
-    digest TEXT,
-    query_text TEXT,
-    COUNT_STAR BIGINT,
-    latency BIGINT,
-    SUM_NO_INDEX_USED BIGINT,
-    SUM_SELECT_SCAN BIGINT
+    command TEXT,
+    exec_time BIGINT NOT NULL,
+    query TEXT,
+    state TEXT,
+    trx_state TEXT,
+    trx_operation_state TEXT,
+    trx_rows_locked BIGINT,
+    trx_rows_modified BIGINT
 );
 
 CREATE TABLE replication (
@@ -43,3 +50,7 @@ ALTER TABLE replication SET (timescaledb.compress, timescaledb.compress_segmentb
 SELECT add_compression_policy('table_io', interval '30 minutes');
 SELECT add_compression_policy('digest_stats', interval '30 minutes');
 SELECT add_compression_policy('replication', interval '30 minutes');
+
+SELECT add_retention_policy('table_io', INTERVAL '1 week');
+SELECT add_retention_policy('digest_stats', INTERVAL '1 week');
+SELECT add_retention_policy('replication', INTERVAL '1 week');

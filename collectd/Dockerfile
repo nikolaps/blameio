@@ -1,18 +1,24 @@
-FROM collectd/collectd
+# Use Debian Bullseye as base image
+FROM debian:bullseye
 
-# Install Python and required libraries
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.9, pip, and collectd
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
+    apt-get install -y python3.9 python3-pip collectd && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy the Python script into the container
 COPY script.py /usr/src/app/script.py
+# Set Python 3.9 as the default Python version
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
 
-# Install Python dependencies
+# Install required Python packages
 COPY requirements.txt /usr/src/app/requirements.txt
-RUN pip3 install --no-cache-dir -r /usr/src/app/requirements.txt
+RUN pip3 install -r /usr/src/app/requirements.txt
 
-# Copy the collectd.conf configuration file
+# Copy the collectd configuration file
 COPY collectd.conf /etc/collectd/collectd.conf
 
-CMD ["collectd", "-f"]
+# Run collectd in foreground mode
+CMD ["/usr/sbin/collectd", "-f"]

@@ -32,18 +32,27 @@ query_io = (
          "AND SUM_TIMER_WAIT > 0"
          )
 
-query_digest = (
-        "SELECT "
-        "digest, "
-        "digest_text AS query_text, "
-        "count_star AS exec_count, "
-        "sum_timer_wait/1000000000000 AS latency, "
-        "sum_no_index_used AS no_index_used_count, "
-        "sum_select_scan AS full_scan_count "
-        "FROM performance_schema.events_statements_summary_by_digest "
-        "WHERE digest IS NOT NULL "
-        "AND SUM_TIMER_WAIT > 0"
-    )
+query_digest = """
+            SELECT processlist_id                  AS id,
+                   IFNULL(processlist_user, "")    AS user,
+                   IFNULL(processlist_host, "")    AS host,
+                   IFNULL(processlist_db, "")      AS db,
+                   IFNULL(processlist_command, "") As command,
+                   IFNULL(processlist_time, "0")   AS exec_time,
+                   IFNULL(processlist_info, "")    AS query,
+                   IFNULL(processlist_state, "")   AS state,
+                   IFNULL(trx_state, "")           AS trx_state,
+                   IFNULL(trx_operation_state, "") AS trx_operation_state,
+                   IFNULL(trx_rows_locked, "0")    AS trx_rows_locked,
+                   IFNULL(trx_rows_modified, "0")  AS trx_rows_modified
+            FROM performance_schema.threads t
+                     LEFT JOIN information_schema.innodb_trx tx ON trx_mysql_thread_id = t.processlist_id
+            WHERE processlist_id IS NOT NULL
+              AND processlist_time IS NOT NULL
+              AND processlist_command != 'Daemon'
+              AND (processlist_command != 'Sleep' AND processlist_command NOT LIKE 'Binlog Dump%')
+              AND (processlist_info IS NOT NULL OR trx_query IS NOT NULL)
+               """
 
 query_replica = "SHOW SLAVE STATUS"
 
@@ -76,12 +85,41 @@ for db_name, db_params in databases.items():
 
     # Execute the second query
     cursor.execute(query_digest)
-    for (digest,query_text, exec_count, latency, no_index_used_count, full_scan_count) in cursor:
+    for (id, user, host, db, command, exec_time, query, state, trx_state, trx_operation_state, trx_rows_locked, trx_rows_modified) in cursor:
         cur.execute(
-            "INSERT INTO digest_stats (db, digest, query_text, COUNT_STAR, latency, SUM_NO_INDEX_USED, SUM_SELECT_SCAN) VALUES (%s, %s, %s, %s, %s, %s)",
-            (db_name, digest, query_text, exec_count, latency, no_index_used_count, full_scan_count)
+            """
+            INSERT INTO digest_stats (
+                id, 
+                user, 
+                host, 
+                db, 
+                command, 
+                exec_time, 
+                query, 
+                state, 
+                trx_state, 
+                trx_operation_state, 
+                trx_rows_locked, 
+                trx_rows_modified
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                id, 
+                user, 
+                host, 
+                db, 
+                command, 
+                exec_time, 
+                query, 
+                state, 
+                trx_state, 
+                trx_operation_state, 
+                trx_rows_locked, 
+                trx_rows_modified
+            )
         )
         conn.commit()
+
 
     # Check and get replication stats if it's a replica
     if db_name == 'replica':

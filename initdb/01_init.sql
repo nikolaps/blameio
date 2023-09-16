@@ -15,7 +15,7 @@ CREATE TABLE table_io (
 CREATE TABLE digest_stats (
     time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     id BIGINT PRIMARY KEY,
-    user TEXT,
+    "user" TEXT,
     host TEXT,
     db TEXT,
     command TEXT,

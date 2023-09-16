@@ -14,7 +14,7 @@ CREATE TABLE table_io (
 
 CREATE TABLE digest_stats (
     time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    id BIGINT PRIMARY KEY,
+    id BIGINT,
     "user" TEXT,
     host TEXT,
     db TEXT,
@@ -26,6 +26,7 @@ CREATE TABLE digest_stats (
     trx_operation_state TEXT,
     trx_rows_locked BIGINT,
     trx_rows_modified BIGINT
+    PRIMARY KEY (time, id)
 );
 
 CREATE TABLE replication (
@@ -44,7 +45,7 @@ SELECT create_hypertable('digest_stats', 'time', chunk_time_interval => interval
 SELECT create_hypertable('replication', 'time', chunk_time_interval => interval '15 minutes');
 
 ALTER TABLE table_io SET (timescaledb.compress, timescaledb.compress_segmentby = 'db,table_name');
-ALTER TABLE digest_stats SET (timescaledb.compress, timescaledb.compress_segmentby = 'db,digest');
+ALTER TABLE digest_stats SET (timescaledb.compress, timescaledb.compress_segmentby = 'db');
 ALTER TABLE replication SET (timescaledb.compress, timescaledb.compress_segmentby = 'db,host');
 
 SELECT add_compression_policy('table_io', interval '30 minutes');

@@ -26,7 +26,6 @@ CREATE TABLE digest_stats (
     trx_operation_state TEXT,
     trx_rows_locked BIGINT,
     trx_rows_modified BIGINT
-    PRIMARY KEY (time, id)
 );
 
 CREATE TABLE replication (

@@ -107,7 +107,7 @@ for db_name, db_params in databases.items():
                 id, 
                 user, 
                 host, 
-                db, 
+                db_name, 
                 command, 
                 exec_time, 
                 query, 

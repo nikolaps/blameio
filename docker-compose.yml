@@ -26,7 +26,7 @@ services:
     image: grafana/grafana
     environment:
       GF_DATABASE_TYPE: postgres
-      GF_DATABASE_HOST: timescaledb:5432
+      GF_DATABASE_HOST: timescaledb:5433
       GF_DATABASE_NAME: statsdb
       GF_DATABASE_USER: blameio
       GF_DATABASE_PASSWORD: RYc7ET6MwdjkmkbkfPJutHfh

@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Python 3.9, pip, and collectd
 RUN apt-get update && \
-    apt-get install -y python3.9 python3-pip collectd && \
+    apt-get install -y --no-install-recommends python3.9 python3-pip collectd && \
     rm -rf /var/lib/apt/lists/*
 
 COPY script.py /usr/src/app/script.py

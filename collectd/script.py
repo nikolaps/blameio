@@ -19,40 +19,53 @@ databases = {
     }
 }
 
-query_io = (
-         "SELECT concat(OBJECT_SCHEMA,'.',OBJECT_NAME) as table_name,"
-         "SUM_TIMER_FETCH / 1000000000000 as FETCH_LATENCY,"
-         "SUM_TIMER_INSERT / 1000000000000 as INSERT_LATENCY,"
-         "SUM_TIMER_UPDATE / 1000000000000 as UPDATE_LATENCY,"
-         "SUM_TIMER_DELETE / 1000000000000 as DELETE_LATENCY,"
-         "COUNT_STAR,"
-         "SUM_TIMER_WAIT / 1000000000000 as WAIT_LATENCY "
-         "FROM performance_schema.table_io_waits_summary_by_table "
-         "WHERE OBJECT_SCHEMA NOT IN ('performance_schema', 'mysql', 'information_schema') "
-         "AND SUM_TIMER_WAIT > 0"
-         )
+query_table_io = '''
+SELECT concat(OBJECT_SCHEMA, '.', OBJECT_NAME) as table_name,
+       SUM_TIMER_FETCH / 1000000000000         as FETCH_LATENCY,
+       SUM_TIMER_INSERT / 1000000000000        as INSERT_LATENCY,
+       SUM_TIMER_UPDATE / 1000000000000        as UPDATE_LATENCY,
+       SUM_TIMER_DELETE / 1000000000000        as DELETE_LATENCY,
+       COUNT_STAR,
+       SUM_TIMER_WAIT / 1000000000000          as WAIT_LATENCY
+FROM performance_schema.table_io_waits_summary_by_table
+WHERE OBJECT_SCHEMA NOT IN ('performance_schema', 'mysql', 'information_schema')
+  AND SUM_TIMER_WAIT > 0
+'''
+
+query_index_io = '''
+SELECT concat(OBJECT_SCHEMA, '.', OBJECT_NAME, '.', COALESCE(INDEX_NAME, 'full_scan')) as index_name,
+       SUM_TIMER_FETCH / 1000000000000                                                 as FETCH_LATENCY,
+       SUM_TIMER_INSERT / 1000000000000                                                as INSERT_LATENCY,
+       SUM_TIMER_UPDATE / 1000000000000                                                as UPDATE_LATENCY,
+       SUM_TIMER_DELETE / 1000000000000                                                as DELETE_LATENCY,
+       COUNT_STAR,
+       SUM_TIMER_WAIT / 1000000000000                                                  as WAIT_LATENCY
+FROM performance_schema.table_io_waits_summary_by_index_usage
+WHERE OBJECT_SCHEMA NOT IN ('performance_schema', 'mysql', 'information_schema')
+  AND SUM_TIMER_WAIT > 0
+'''
 
 query_digest = """
-            SELECT processlist_id                  AS id,
-                   IFNULL(processlist_user, "")    AS user,
-                   IFNULL(processlist_host, "")    AS host,
-                   IFNULL(processlist_db, "")      AS db,
-                   IFNULL(processlist_command, "") As command,
-                   IFNULL(processlist_time, "0")   AS exec_time,
-                   IFNULL(processlist_info, "")    AS query,
-                   IFNULL(processlist_state, "")   AS state,
-                   IFNULL(trx_state, "")           AS trx_state,
-                   IFNULL(trx_operation_state, "") AS trx_operation_state,
-                   IFNULL(trx_rows_locked, "0")    AS trx_rows_locked,
-                   IFNULL(trx_rows_modified, "0")  AS trx_rows_modified
-            FROM performance_schema.threads t
-                     LEFT JOIN information_schema.innodb_trx tx ON trx_mysql_thread_id = t.processlist_id
-            WHERE processlist_id IS NOT NULL
-              AND processlist_time IS NOT NULL
-              AND processlist_command != 'Daemon'
-              AND (processlist_command != 'Sleep' AND processlist_command NOT LIKE 'Binlog Dump%')
-              AND (processlist_info IS NOT NULL OR trx_query IS NOT NULL)
-               """
+SELECT processlist_id                  AS id,
+       IFNULL(processlist_user, "")    AS user,
+       IFNULL(processlist_host, "")    AS host,
+       IFNULL(processlist_db, "")      AS db,
+       IFNULL(processlist_command, "") As command,
+       IFNULL(processlist_time, "0")   AS exec_time,
+       IFNULL(processlist_info, "")    AS query,
+       IFNULL(processlist_state, "")   AS state,
+       IFNULL(trx_state, "")           AS trx_state,
+       IFNULL(trx_operation_state, "") AS trx_operation_state,
+       IFNULL(trx_rows_locked, "0")    AS trx_rows_locked,
+       IFNULL(trx_rows_modified, "0")  AS trx_rows_modified
+FROM performance_schema.threads t
+         LEFT JOIN information_schema.innodb_trx tx ON trx_mysql_thread_id = t.processlist_id
+WHERE processlist_id IS NOT NULL
+  AND processlist_time IS NOT NULL
+  AND processlist_command != 'Daemon'
+  AND (processlist_command != 'Sleep' AND processlist_command NOT LIKE 'Binlog Dump%')
+  AND (processlist_info IS NOT NULL OR trx_query IS NOT NULL)
+"""
 
 query_replica = "SHOW SLAVE STATUS"
 
@@ -75,7 +88,7 @@ for db_name, db_params in databases.items():
     cursor = cnx.cursor()
 
     # Execute the first query
-    cursor.execute(query_io)
+    cursor.execute(query_table_io)
     for (table_name, FETCH_LATENCY, INSERT_LATENCY, UPDATE_LATENCY, DELETE_LATENCY, COUNT_STAR, WAIT_LATENCY) in cursor:
         cur.execute(
             "INSERT INTO table_io (db, table_name, FETCH_LATENCY, INSERT_LATENCY, UPDATE_LATENCY, DELETE_LATENCY, COUNT_STAR, WAIT_LATENCY) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
@@ -116,6 +129,35 @@ for db_name, db_params in databases.items():
                 trx_operation_state, 
                 trx_rows_locked, 
                 trx_rows_modified
+            )
+        )
+        conn.commit()
+
+    # Execute the index_io query
+    cursor.execute(query_index_io)
+    for (index_name, FETCH_LATENCY, INSERT_LATENCY, UPDATE_LATENCY, DELETE_LATENCY, COUNT_STAR, WAIT_LATENCY) in cursor:
+        cur.execute(
+            """
+            INSERT INTO index_io (
+                db, 
+                index_name, 
+                FETCH_LATENCY, 
+                INSERT_LATENCY, 
+                UPDATE_LATENCY, 
+                DELETE_LATENCY, 
+                COUNT_STAR, 
+                WAIT_LATENCY
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                db_name, 
+                index_name, 
+                FETCH_LATENCY, 
+                INSERT_LATENCY, 
+                UPDATE_LATENCY, 
+                DELETE_LATENCY, 
+                COUNT_STAR, 
+                WAIT_LATENCY
             )
         )
         conn.commit()

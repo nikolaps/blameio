@@ -1,0 +1,554 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 8,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "P40AE60E18F02DE32"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 46,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 0,
+              "pointSize": 1,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "normal"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 10,
+          "w": 18,
+          "x": 0,
+          "y": 0
+        },
+        "id": 4,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": false
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P40AE60E18F02DE32"
+            },
+            "editorMode": "code",
+            "format": "time_series",
+            "rawQuery": true,
+            "rawSql": "SELECT\r\n    date_trunc('minute', time) AS time,\r\n    $breakdown,\r\n    SUM(exec_time) AS total_execution_time\r\nFROM\r\n    digest_stats\r\nWHERE\r\n    $__timeFilter(time)\r\nAND db = 'replica'\r\nGROUP BY\r\n    time, $breakdown\r\nORDER BY\r\n    time;",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ],
+              "limit": 50
+            }
+          }
+        ],
+        "title": "Queries by total exec time",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "P40AE60E18F02DE32"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            },
+            "mappings": []
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 22,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "id": 2,
+        "options": {
+          "displayLabels": [
+            "percent"
+          ],
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "showLegend": true,
+            "values": [
+              "percent"
+            ]
+          },
+          "pieType": "donut",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P40AE60E18F02DE32"
+            },
+            "editorMode": "code",
+            "format": "table",
+            "rawQuery": true,
+            "rawSql": "WITH time_buckets AS (\r\n    SELECT date_trunc('minute', time) AS time,\r\n           index_name,\r\n           AVG(wait_latency) AS mean_wait_latency\r\n    FROM index_io\r\n    WHERE $__timeFilter(time)\r\n      AND db = 'replica'\r\n    GROUP BY time, index_name\r\n),\r\nlag_values AS (\r\n    SELECT time,\r\n           index_name,\r\n           mean_wait_latency,\r\n           LAG(mean_wait_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_wait_latency\r\n    FROM time_buckets\r\n),\r\nindex_latencies AS (\r\n    SELECT index_name,\r\n           SUM(mean_wait_latency - prev_mean_wait_latency) AS total_wait_latency_diff\r\n    FROM lag_values\r\n    WHERE mean_wait_latency - prev_mean_wait_latency IS NOT NULL\r\n    GROUP BY index_name\r\n),\r\ntotal_latency AS (\r\n    SELECT SUM(total_wait_latency_diff) AS overall_total_diff\r\n    FROM index_latencies\r\n),\r\nindex_with_percentage AS (\r\n    SELECT index_name,\r\n           total_wait_latency_diff,\r\n           (total_wait_latency_diff / (SELECT overall_total_diff FROM total_latency)) * 100 AS percentage_of_total\r\n    FROM index_latencies\r\n),\r\nindex_with_cumulative_percentage AS (\r\n    SELECT index_name,\r\n           percentage_of_total,\r\n           SUM(percentage_of_total) OVER (ORDER BY percentage_of_total DESC) AS cumulative_percentage\r\n    FROM index_with_percentage\r\n)\r\nSELECT\r\n    CASE\r\n        WHEN cumulative_percentage - percentage_of_total > 99 THEN 'OTHER'\r\n        ELSE index_name\r\n    END AS index_name,\r\n    SUM(percentage_of_total) AS percentage_of_total\r\nFROM index_with_cumulative_percentage\r\nGROUP BY CASE\r\n            WHEN cumulative_percentage - percentage_of_total > 99 THEN 'OTHER'\r\n            ELSE index_name\r\n         END\r\nORDER BY percentage_of_total DESC;\r\n",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ],
+              "limit": 50
+            }
+          }
+        ],
+        "title": "Top index IOwait",
+        "type": "piechart"
+      },
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "P40AE60E18F02DE32"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 54,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "normal"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 12,
+          "w": 18,
+          "x": 0,
+          "y": 10
+        },
+        "id": 1,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": false
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P40AE60E18F02DE32"
+            },
+            "editorMode": "code",
+            "format": "time_series",
+            "rawQuery": true,
+            "rawSql": "WITH time_buckets AS (\r\n    SELECT date_trunc('minute', time) AS time,\r\n           index_name,\r\n           SUM(wait_latency) AS mean_wait_latency\r\n    FROM index_io\r\n    WHERE $__timeFilter(time)\r\n      AND db = 'replica'\r\n    GROUP BY time, index_name\r\n),\r\nlag_values AS (\r\n    SELECT time,\r\n           index_name,\r\n           mean_wait_latency,\r\n           LAG(mean_wait_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_wait_latency\r\n    FROM time_buckets\r\n)\r\nSELECT time,\r\n       index_name,\r\n       mean_wait_latency - prev_mean_wait_latency AS wait_latency_diff\r\nFROM lag_values\r\nWHERE (mean_wait_latency - prev_mean_wait_latency) > 0\r\nORDER BY 1;\r\n",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ],
+              "limit": 50
+            }
+          }
+        ],
+        "title": "Index IOwait stats",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "P40AE60E18F02DE32"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "gauge"
+              },
+              "filterable": true,
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "percent"
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "index_name"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 405
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "fetch_latency"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 250
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "insert_latency"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 279
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "update_latency"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 260
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 18,
+          "w": 24,
+          "x": 0,
+          "y": 22
+        },
+        "id": 3,
+        "options": {
+          "cellHeight": "sm",
+          "footer": {
+            "countRows": false,
+            "enablePagination": true,
+            "fields": [
+              "WAIT_LATENCY (percent of total)"
+            ],
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": []
+        },
+        "pluginVersion": "10.1.1",
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P40AE60E18F02DE32"
+            },
+            "editorMode": "code",
+            "format": "table",
+            "rawQuery": true,
+            "rawSql": "WITH time_buckets AS (\r\n    SELECT date_trunc('minute', time) AS time,\r\n           index_name,\r\n           AVG(fetch_latency) AS mean_fetch_latency,\r\n           AVG(insert_latency) AS mean_insert_latency,\r\n           AVG(update_latency) AS mean_update_latency,\r\n           AVG(delete_latency) AS mean_delete_latency,\r\n           AVG(wait_latency) AS mean_wait_latency\r\n    FROM index_io\r\n    WHERE $__timeFilter(time)\r\n      AND db = 'replica'\r\n    GROUP BY time, index_name\r\n),\r\n\r\nlag_values AS (\r\n    SELECT time,\r\n           index_name,\r\n           mean_fetch_latency,\r\n           LAG(mean_fetch_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_fetch_latency,\r\n           mean_insert_latency,\r\n           LAG(mean_insert_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_insert_latency,\r\n           mean_update_latency,\r\n           LAG(mean_update_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_update_latency,\r\n           mean_delete_latency,\r\n           LAG(mean_delete_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_delete_latency,\r\n           mean_wait_latency,\r\n           LAG(mean_wait_latency) OVER (PARTITION BY index_name ORDER BY time) AS prev_mean_wait_latency\r\n    FROM time_buckets\r\n),\r\n\r\nlatency_diffs AS (\r\n    SELECT index_name,\r\n           SUM(mean_fetch_latency - prev_mean_fetch_latency) AS fetch_latency_diff,\r\n           SUM(mean_insert_latency - prev_mean_insert_latency) AS insert_latency_diff,\r\n           SUM(mean_update_latency - prev_mean_update_latency) AS update_latency_diff,\r\n           SUM(mean_delete_latency - prev_mean_delete_latency) AS delete_latency_diff,\r\n           SUM(mean_wait_latency - prev_mean_wait_latency) AS wait_latency_diff\r\n    FROM lag_values\r\n    WHERE mean_wait_latency - prev_mean_wait_latency IS NOT NULL\r\n    GROUP BY index_name\r\n),\r\n\r\noverall_totals AS (\r\n    SELECT SUM(wait_latency_diff) AS overall_wait_diff\r\n    FROM latency_diffs\r\n)\r\n\r\nSELECT index_name,\r\n       ROUND((fetch_latency_diff/NULLIF(wait_latency_diff,0))*100) AS FETCH_LATENCY,\r\n       ROUND((insert_latency_diff/NULLIF(wait_latency_diff,0))*100) AS INSERT_LATENCY,\r\n       ROUND((update_latency_diff/NULLIF(wait_latency_diff,0))*100) AS UPDATE_LATENCY,\r\n       ROUND((delete_latency_diff/NULLIF(wait_latency_diff,0))*100) AS DELETE_LATENCY,\r\n       ROUND((wait_latency_diff/NULLIF(overall_wait_diff,0))*100) AS \"WAIT_LATENCY (percent of total)\"\r\nFROM latency_diffs, overall_totals\r\nWHERE wait_latency_diff > 0\r\n",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ],
+              "limit": 50
+            }
+          }
+        ],
+        "title": "Index iowait operation breakdown",
+        "transformations": [
+          {
+            "id": "sortBy",
+            "options": {
+              "fields": {},
+              "sort": [
+                {
+                  "desc": true,
+                  "field": "WAIT_LATENCY (percent of total)"
+                }
+              ]
+            }
+          },
+          {
+            "id": "limit",
+            "options": {
+              "limitField": 100
+            }
+          }
+        ],
+        "type": "table"
+      }
+    ],
+    "refresh": "1m",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": false,
+            "text": "query",
+            "value": "query"
+          },
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "name": "breakdown",
+          "options": [
+            {
+              "selected": true,
+              "text": "query",
+              "value": "query"
+            },
+            {
+              "selected": false,
+              "text": "\"user\"",
+              "value": "\"user\""
+            },
+            {
+              "selected": false,
+              "text": "state",
+              "value": "state"
+            },
+            {
+              "selected": false,
+              "text": "host",
+              "value": "host"
+            },
+            {
+              "selected": false,
+              "text": "trx_operation_state",
+              "value": "trx_operation_state"
+            }
+          ],
+          "query": "query, \"user\", state, host, trx_operation_state",
+          "queryValue": "",
+          "skipUrlSync": false,
+          "type": "custom"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "DB Slave Index stats",
+    "uid": "da9a8715-cc6b-4bd6-80c7-d45e6e206bdb",
+    "version": 3,
+    "weekStart": ""
+  }

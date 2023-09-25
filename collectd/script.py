@@ -164,17 +164,16 @@ for db_name, db_params in databases.items():
 
 
     # Check and get replication stats if it's a replica
-    if db_name == 'replica':
-        cnx.database = 'mysql'
-        cursor.execute(query_replica)
-        for row in cursor:
-            columns = cursor.column_names
-            replication_data = dict(zip(columns, row))
-            cur.execute(
-                "INSERT INTO replication (db, host, Master_Log_File, Read_Master_Log_Pos, Relay_Master_Log_File, Exec_Master_Log_Pos, Seconds_Behind_Master) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (db_name, db_params['DB_HOST'], replication_data['Master_Log_File'], replication_data['Read_Master_Log_Pos'], replication_data['Relay_Master_Log_File'], replication_data['Exec_Master_Log_Pos'], replication_data['Seconds_Behind_Master'])
-            )
-            conn.commit()
+    cnx.database = 'mysql'
+    cursor.execute(query_replica)
+    for row in cursor:
+        columns = cursor.column_names
+        replication_data = dict(zip(columns, row))
+        cur.execute(
+            "INSERT INTO replication (db, host, Master_Log_File, Read_Master_Log_Pos, Relay_Master_Log_File, Exec_Master_Log_Pos, Seconds_Behind_Master) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (db_name, db_params['DB_HOST'], replication_data['Master_Log_File'], replication_data['Read_Master_Log_Pos'], replication_data['Relay_Master_Log_File'], replication_data['Exec_Master_Log_Pos'], replication_data['Seconds_Behind_Master'])
+        )
+        conn.commit()
 
     # Close cursor and connection
     cursor.close()

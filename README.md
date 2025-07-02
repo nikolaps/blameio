@@ -96,11 +96,14 @@ Use the provided JSON templates or import them manually.
 ## 📈 Dashboards
 ![photo_2025-07-02 15 27 46](https://github.com/user-attachments/assets/c0863934-5877-44b9-aa8d-f345ee9f6524)
 
-- 📌 **Table I/O Breakdown**
-- 📌 **Index I/O Breakdown**
-- 📌 **Replication Lag Attribution**
-- 📌 **Operation Type Breakdown (read/write/update/delete)**
-- 📌 **Alert Triggers and Historical Trends**
+This Grafana dashboard shows:
+
+- **Replication lag trend** over time (`Seconds_Behind_Master`)
+- **Table I/O latency** grouped by table and operation (read, write, etc.)
+- **Index-level breakdown** of I/O wait with percent contributions
+- **Query-type latency** grouped by fetch, insert, update, and delete
+- **"Top N contributors"** for both tables and indexes
+- **Drilldown view** to diagnose which tables or indexes contribute the most to lag
 
 ---
 

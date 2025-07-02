@@ -58,7 +58,7 @@ In over 95% of replication lag cases, the root cause is high I/O pressure on a s
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/blameio.git
+git clone https://github.com/nikolaps/blameio.git
 cd blameio
 ```
 
@@ -80,7 +80,7 @@ sudo /usr/local/bin/blameio_postgres.py
 
 Adjust connection settings in the script as needed.
 
-### 4. Enable Filetop (requires BCC)
+### 4. Enable Filetop (for PostgreSQL)
 
 ```bash
 sudo apt install bpfcc-tools

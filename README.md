@@ -94,6 +94,7 @@ Use the provided JSON templates or import them manually.
 ---
 
 ## 📈 Dashboards
+![photo_2025-07-02 15 27 46](https://github.com/user-attachments/assets/c0863934-5877-44b9-aa8d-f345ee9f6524)
 
 - 📌 **Table I/O Breakdown**
 - 📌 **Index I/O Breakdown**
